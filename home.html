@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WELCOME</title>
+    <style>
+        /* Adicione o estilo necessário aqui */
+    </style>
+</head>
+
+<body>
+    <h1>WELCOME, TO THE GAME!</h1>
+
+    <div id="chatContainer">
+        <div id="userList">
+            <h2>Usuários Ativos</h2>
+            <ul id="userListItems"></ul>
+        </div>
+        <div id="chat"></div>
+    </div>
+
+    <input type="text" id="messageInput" placeholder="Digite uma mensagem...">
+    <button onclick="sendMessage()">Enviar</button>
+    <button id="startGameButton" onclick="startGame()" disabled>Iniciar Jogo</button>
+
+    <script>
+        sessionStorage.clear();
+
+        const chatElement = document.getElementById('chat');
+        const userListItemsElement = document.getElementById('userListItems');
+        const messageInputElement = document.getElementById('messageInput');
+        const startGameButton = document.getElementById('startGameButton');
+
+        let currentRoomName = ''; // Variável para armazenar o nome da sala atual
+
+        const socket = new WebSocket('ws://localhost:8080');
+
+        socket.onopen = function () {
+            console.log('Conexão WebSocket estabelecida');
+            const username = prompt('Por favor, digite seu nome de usuário:');
+            sessionStorage.setItem('username', username);
+            socket.send(JSON.stringify({ type: 'set_username', username: username }));
+        };
+
+        socket.onmessage = function (event) {
+            const data = JSON.parse(event.data);
+            if (data.type === 'chat_message') {
+                chatElement.innerHTML += `<div><strong>${data.username}:</strong> ${data.text}</div>`;
+                chatElement.scrollTop = chatElement.scrollHeight;
+            } else if (data.type === 'user_list') {
+                renderUserList(data.users);
+            } else if (data.type === 'invite') {
+                const username = data.inviteFrom;
+                if (confirm(`${username} te convidou para jogar. Aceitar?`)) {
+                    socket.send(JSON.stringify({ type: 'accept_invite', inviteFrom: username }));
+                } else {
+                    socket.send(JSON.stringify({ type: 'reject_invite', inviteFrom: username }));
+                }
+            } else if (data.type === 'invite_accepted') {
+                startGameButton.disabled = false;
+                currentRoomName = data.roomName;
+                alert(`Sala criada com sucesso! Nome da sala: ${currentRoomName}`);
+            } else if (data.type === 'redirect_to_game') {
+                sessionStorage.setItem('clientId', data.clientId);
+                sessionStorage.setItem('username', data.username);
+                window.location.href = 'game.html';
+            } else if (data.type === 'set_client_id') {
+                sessionStorage.setItem('clientId', data.clientId);
+            } else if (data.type === 'start_game') {
+                sessionStorage.setItem('roomName', data.roomName);
+                window.location.href = 'game.html';
+            } else if (data.type === 'game_over') {
+                alert('O jogo terminou!');
+                window.location.href = 'home.html';
+            }
+        };
+
+
+        function setUsername(username) {
+            sessionStorage.setItem('username', username);
+            socket.send(JSON.stringify({ type: 'set_username', username: username }));
+        }
+
+        function acceptInvite(inviteFrom) {
+            socket.send(JSON.stringify({ type: 'accept_invite', inviteFrom: inviteFrom }));
+        }
+
+
+        function sendMessage() {
+            const message = messageInputElement.value.trim();
+            if (message !== '') {
+                socket.send(JSON.stringify({ type: 'chat_message', text: message }));
+                messageInputElement.value = '';
+            }
+        }
+
+        function renderUserList(users) {
+            userListItemsElement.innerHTML = '';
+            users.forEach(user => {
+                const listItem = document.createElement('li');
+                listItem.textContent = user.username;
+                const inviteButton = document.createElement('button');
+                inviteButton.textContent = 'Convide';
+                inviteButton.onclick = function () {
+                    inviteUser(user.username);
+                };
+                listItem.appendChild(inviteButton);
+                userListItemsElement.appendChild(listItem);
+            });
+        }
+
+        function inviteUser(username) {
+            if (confirm(`Convidar ${username} para jogar?`)) {
+                socket.send(JSON.stringify({ type: 'invite', username }));
+            }
+        }
+
+        function startGame() {
+            socket.send(JSON.stringify({ type: 'start_game', roomName: currentRoomName }));
+        }
+
+        socket.onerror = function (error) {
+            console.error('Erro na conexão WebSocket:', error);
+        };
+
+        socket.onclose = function () {
+            console.log('Conexão WebSocket encerrada.');
+        };
+    </script>
+</body>
+
+</html>
