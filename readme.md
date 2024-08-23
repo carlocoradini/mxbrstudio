@@ -1,6 +1,21 @@
 # Dobrar & Assoprar
 > O jogo de corrida de barcos de papel
 
+# Compilar e executar:
+
+> Para compilar digite o seguinte comando
+```
+npm install
+```
+
+> Para executar o servidor
+```
+node index.js
+```
+
+- E para abrir o jogo, basta acessar o home.html no seu navegador
+- Bom jogo!
+
 # Documento de Design do Jogo
 
 > Para melhores soluções, vamos nos concentrar em responder algumas perguntas sobre isso...
